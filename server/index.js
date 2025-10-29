@@ -1,14 +1,21 @@
-require('dotenv').config();
-const express = require('express');
-const cors = require('cors');
+// server.js (ESM)
+import dotenv from 'dotenv';
+dotenv.config();
+
+import express from 'express';
+import cors from 'cors';
+import mongoose from 'mongoose';
+
+import authRoutes from './routes/auth.js'; // make sure this file uses `export default router;`
+
 const app = express();
+
 app.use(cors({ origin: 'http://localhost:5173', credentials: true }));
 app.use(express.json());
-const mongoose = require('mongoose');
 
 // DB connection
 mongoose
-  .connect(process.env.MONGO_URI)
+  .connect('mongodb://127.0.0.1:27017/food_delivery')
   .then(() => console.log('✅ Connected to MongoDB'))
   .catch((err) => console.error('MongoDB connection error:', err));
 
@@ -28,7 +35,6 @@ app.get('/api/restaurants', (req, res) => {
 });
 
 // Auth routes
-const authRoutes = require('./routes/auth');
 app.use('/api/auth', authRoutes);
 
 app.listen(5000, () => console.log('API running on http://localhost:5000'));

@@ -1,10 +1,12 @@
-const express = require('express');
-const bycrypt = require('bcryptjs');
-const jwt = require('jsonwebtoken');
-const User = require('../models/User');
+import express from 'express';
+import bcrypt from 'bcryptjs';
+import jwt from 'jsonwebtoken';
+import User from '../models/User.js';
+import dotenv from 'dotenv';
 
 const router = express.Router();
 
+dotenv.config();
 const JWT_SECRET = process.env.JWT_SECRET;
 
 router.post('/signup', async (req, res) => {
@@ -22,12 +24,12 @@ router.post('/signup', async (req, res) => {
     await user.save();
 
     res.status(201).json({ message: 'SignUp Successful' });
-  } catch {
+  } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-router.post('login', async (req, res) => {
+router.post('/login', async (req, res) => {
   try {
     const { email, password } = req.body;
     const user = await User.findOne({ email });
@@ -50,4 +52,7 @@ router.post('login', async (req, res) => {
   }
 });
 
-module.exports = router;
+export default router;
+
+//signup test:
+//  Invoke-RestMethod -Uri "http://localhost:5000/api/auth/signup" -Method POST -Headers @{ "Content-Type" = "application/json" } -Body '{"name":"Smriti","email":"smriti@example.com","password":"mysecurepassword","role":"customer"}'
