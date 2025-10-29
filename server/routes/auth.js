@@ -1,23 +1,53 @@
-// server/routes/auth.js
-const express = require("express");
+const express = require('express');
+const bycrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
+const User = require('../models/User');
+
 const router = express.Router();
-const bcrypt = require("bcryptjs");
-const jwt = require("jsonwebtoken");
-// pretend "User" model; will make Mongoose model next
-let users = [];
 
-router.post("/signup", async (req, res) => {
-  const { name, email, password, role = "customer" } = req.body;
-  if (users.find((u) => u.email === email))
-    return res.status(400).json({ message: "Email exists" });
-  const hash = await bcrypt.hash(password, 10);
-  const user = { id: users.length + 1, name, email, passwordHash: hash, role };
-  users.push(user);
-  res.json({ ok: true });
+const JWT_SECRET = process.env.JWT_SECRET;
+
+router.post('/signup', async (req, res) => {
+  try {
+    const { name, email, password, role } = req.body;
+    const exisiting = await User.findOne({ email });
+    if (exisiting)
+      return res.status(406).json({ message: 'User already exists' });
+
+    const hashed = await bcrypt.hash(password, 10);
+
+    //while creating a new User object (instance) that follows the Mongoose schema you defined earlier
+    //user → an object (instance) of the User model
+    const user = new User({ name, email, password: hashed, role });
+    await user.save();
+
+    res.status(201).json({ message: 'SignUp Successful' });
+  } catch {
+    res.status(500).json({ error: err.message });
+  }
 });
 
-router.post("/login", async (req, res) => {
-  const { email, password } = req.body;
-  const user = users.find((u) => u.email === email);
-  if (!user) return res.status(401).json();
+router.post('login', async (req, res) => {
+  try {
+    const { email, password } = req.body;
+    const user = await User.findOne({ email });
+
+    if (!user) return res.status(404).json({ message: 'User not found' });
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch)
+      return res.status(401).json({ message: 'Invalid Credentials' });
+
+    const token = jwt.sign({ id: user._id, role: user.role }, JWT_SECRET, {
+      expiresIn: '1h',
+    });
+
+    res.json({
+      token,
+      user: { id: user._id, name: user.name, role: user.role },
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
+
+module.exports = router;

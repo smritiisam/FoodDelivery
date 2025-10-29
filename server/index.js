@@ -1,14 +1,34 @@
-require("dotenv").config();
-const express = require("express");
-const cors = require("cors");
+require('dotenv').config();
+const express = require('express');
+const cors = require('cors');
 const app = express();
-app.use(cors({ origin: "http://localhost:5173", credentials: true }));
+app.use(cors({ origin: 'http://localhost:5173', credentials: true }));
 app.use(express.json());
+const mongoose = require('mongoose');
 
-app.get("/api/restaurants", (req, res) => {
-  res.json([
-    { _id: "r1", name: "Sunrise Diner", cuisine: "Indian", address: "MG Road" },
-  ]);
+// DB connection
+mongoose
+  .connect(process.env.MONGO_URI)
+  .then(() => console.log('✅ Connected to MongoDB'))
+  .catch((err) => console.error('MongoDB connection error:', err));
+
+// Temporary restaurant data
+const restaurants = [
+  {
+    _id: 'r1',
+    name: 'sunsettt dinnerr',
+    cuisine: 'Indian',
+    address: 'MG Road',
+  },
+  { _id: 'r2', name: 'Pasta Palace', cuisine: 'Italian', address: 'Sector 12' },
+];
+
+app.get('/api/restaurants', (req, res) => {
+  res.json(restaurants);
 });
 
-app.listen(5000, () => console.log("API running on http://localhost:5000"));
+// Auth routes
+const authRoutes = require('./routes/auth');
+app.use('/api/auth', authRoutes);
+
+app.listen(5000, () => console.log('API running on http://localhost:5000'));
