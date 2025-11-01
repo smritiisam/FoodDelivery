@@ -1,0 +1,73 @@
+version: "3.9"
+
+services:
+  traefik:
+    image: traefik:v3.0
+    container_name: traefik
+    command:
+      - "--providers.docker=true"
+      - "--entrypoints.web.address=:80"
+      - "--entrypoints.websecure.address=:443"
+      - "--api.insecure=true" # dev only: exposes dashboard on port 8080
+    ports:
+      - "80:80"     # Traefik listens for HTTP
+      - "443:443"   # optional HTTPS
+      - "8080:8080" # Traefik dashboard (insecure; dev only)
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock:ro"
+      - ./traefik/traefik.yml:/etc/traefik/traefik.yml
+    networks:
+      - web
+
+  mongo:
+    image: mongo
+    container_name: mongo_fooddelivery
+    restart: always
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_INITDB_ROOT_USERNAME}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD}
+    volumes:
+      - mongo_data:/data/db
+    networks:
+      - web
+
+  server:
+    build: ./server
+    container_name: food-server
+    environment:
+      - PORT=5000
+      - MONGO_URI=mongodb://admin:adminpass@mongo:27017/food_delivery?authSource=admin
+      - JWT_SECRET=${JWT_SECRET}
+    depends_on:
+      - mongo
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.api.rule=Host(`localhost`) && PathPrefix(`/api`)"
+      - "traefik.http.services.api.loadbalancer.server.port=5000"
+    volumes:
+      - ./server:/app        # <<< bind mount server code for hot reload
+      - /app/node_modules    # optional: avoid overwriting node_modules (if you want)
+    networks:
+      - web
+
+  client:
+    build: ./client
+    container_name: food-client
+    depends_on:
+      - server
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.client.rule=Host(`localhost`) && PathPrefix(`/`)"
+      - "traefik.http.services.client.loadbalancer.server.port=5173" # Vite's port inside container
+    volumes:
+      - ./client:/app        # <<< bind mount client source for HMR
+      - /app/node_modules    # optional: persists modules inside container filesystem
+    networks:
+      - web
+
+volumes:
+  mongo_data:
+
+networks:
+  web:
+    driver: bridge
